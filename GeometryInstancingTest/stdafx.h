@@ -19,3 +19,7 @@
 
 
 // プログラムに必要な追加ヘッダーをここで参照してください
+#if _DEBUG
+#include <crtdbg.h>
+#endif
+#include"CommonValues.h"

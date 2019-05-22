@@ -1,15 +1,19 @@
 ﻿// GeometryInstancingTest.cpp : アプリケーションのエントリ ポイントを定義します。
 //
 
+
 #include "stdafx.h"
 #include "GeometryInstancingTest.h"
+#include "DXManager.h"
 
 #define MAX_LOADSTRING 100
 
+using namespace MyDirectX;
 // グローバル変数:
 HINSTANCE hInst;                                // 現在のインターフェイス
 WCHAR szTitle[MAX_LOADSTRING];                  // タイトル バーのテキスト
 WCHAR szWindowClass[MAX_LOADSTRING];            // メイン ウィンドウ クラス名
+std::unique_ptr<DXManager> mDXManager;
 
 // このコード モジュールに含まれる関数の宣言を転送します:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -22,6 +26,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_ LPWSTR    lpCmdLine,
                      _In_ int       nCmdShow)
 {
+	//メモリリーク検知
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+	//メモリ番号を入れるとその番号のメモリが確保されたときプログラムを止める
+	//_CrtSetBreakAlloc(1);
+
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
@@ -40,17 +49,28 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_GEOMETRYINSTANCINGTEST));
 
-    MSG msg;
-
-    // メイン メッセージ ループ:
-    while (GetMessage(&msg, nullptr, 0, 0))
-    {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-    }
+	MSG msg = { 0 };
+	auto input = mDXManager->GetDXInput();
+	while (WM_QUIT != msg.message)
+	{
+		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+		{
+			if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+			{
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+		}
+		else
+		{
+			//毎フレーム行う処理を書く
+			input->SetInputState();
+			if (input->GetKey(DIK_ESCAPE)) break;
+			mDXManager->BeginScene(0.0f, 0.0f, 0.0f, 1.0f);
+			mDXManager->EndScene();
+			input->SetPreBuffer();
+		}
+	}
 
     return (int) msg.wParam;
 }
@@ -97,14 +117,16 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // グローバル変数にインスタンス ハンドルを格納する
 
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+   RECT rect = { 0,0,(LONG)(cWidth),(LONG)(cHeight) };
+   AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
+   HWND hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+	   CW_USEDEFAULT, CW_USEDEFAULT, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hInstance, NULL);
 
    if (!hWnd)
    {
       return FALSE;
    }
-
+   mDXManager = std::make_unique<DXManager>(hWnd);
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
 
